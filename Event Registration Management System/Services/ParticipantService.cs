@@ -1,122 +1,178 @@
-﻿using Event_Registration_Management_System.Models;
+﻿
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net.Mail;
+using EventRegistrationManagementSystem.Models;
 
-namespace Event_Registration_Management_System.Services
+namespace EventRegistrationManagementSystem.Services
 {
     public class ParticipantService
     {
-        private List<Participant> participants;
+        private readonly List<Participant> _participants;
+        private readonly List<Registration> _registrations;
+        private readonly Action _save;
 
-        public ParticipantService(List<Participant> participants)
+        public ParticipantService(
+            List<Participant> participants,
+            List<Registration> registrations,
+            Action save)
         {
-            this.participants = participants;
+            _participants = participants;
+            _registrations = registrations;
+            _save = save;
         }
 
-        public void DisplayAllParticipant()
+        public List<Participant> GetAll()
         {
-            var result = from item in participants
-                         select item;
+            return _participants
+                .OrderBy(p => p.FullName)
+                .ToList();
+        }
 
-            foreach (var item in result)
+        public Participant? GetById(int id)
+        {
+            return _participants.FirstOrDefault(
+                p => p.ParticipantId == id);
+        }
+
+        public List<Participant> Search(string term)
+        {
+            return _participants
+                .Where(p =>
+                    p.FullName.Contains(term,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    p.Email.Contains(term,
+                        StringComparison.OrdinalIgnoreCase))
+                .OrderBy(p => p.FullName)
+                .ToList();
+        }
+
+        private void Validate(
+            string name,
+            string email,
+            string phone,
+            int excludedId = 0)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                throw new BusinessRuleException(
+                    "Full name is required.");
+
+            if (string.IsNullOrWhiteSpace(email))
+                throw new BusinessRuleException(
+                    "Email is required.");
+
+            try
             {
-                Console.WriteLine(item.GetDetails());
+                MailAddress address = new MailAddress(email);
+
+                if (!address.Address.Equals(
+                    email, StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new FormatException();
+                }
+            }
+            catch (FormatException)
+            {
+                throw new BusinessRuleException(
+                    "Enter a valid email address.");
             }
 
-            if (!participants.Any())
+            if (_participants.Any(p =>
+                p.ParticipantId != excludedId &&
+                p.Email.Equals(
+                    email.Trim(),
+                    StringComparison.OrdinalIgnoreCase)))
             {
-                Console.WriteLine("No participants available.");
+                throw new BusinessRuleException(
+                    "Email is already registered.");
+            }
+
+            if (string.IsNullOrWhiteSpace(phone))
+                throw new BusinessRuleException(
+                    "Phone number is required.");
+
+            string digits = new string(
+                phone.Where(char.IsDigit).ToArray());
+
+            bool validCharacters = phone.All(c =>
+                char.IsDigit(c) ||
+                c == '+' || c == '-' ||
+                c == ' ' || c == '(' || c == ')');
+
+            if (!validCharacters ||
+                digits.Length < 7 ||
+                digits.Length > 15)
+            {
+                throw new BusinessRuleException(
+                    "Enter a valid phone number.");
             }
         }
 
-        public void SearchParticipant()
+        public void Add(Participant participant)
         {
-            Console.Write("Enter Participant Name: ");
-            string? searchName = Console.ReadLine();
+            if (participant.ParticipantId <= 0)
+                throw new BusinessRuleException(
+                    "Participant ID must be positive.");
 
-            if (string.IsNullOrWhiteSpace(searchName))
+            if (_participants.Any(p =>
+                p.ParticipantId == participant.ParticipantId))
             {
-                Console.WriteLine("Give a valid participant name.");
-                return;
+                throw new BusinessRuleException(
+                    "Participant ID already exists.");
             }
 
-            var result = participants.Where(p =>p.ParticipantName.Contains(
-                    searchName,
-                    StringComparison.OrdinalIgnoreCase));
+            Validate(
+                participant.FullName,
+                participant.Email,
+                participant.PhoneNumber);
 
-            if (!result.Any())
-            {
-                Console.WriteLine("Participant not found.");
-                return;
-            }
+            participant.FullName = participant.FullName.Trim();
+            participant.Email = participant.Email.Trim();
+            participant.PhoneNumber = participant.PhoneNumber.Trim();
 
-            foreach (var item in result)
-            {
-                Console.WriteLine(item.GetDetails());
-            }
+            _participants.Add(participant);
+            _save();
         }
 
-        
-        public void UpdateParticipant()
+        public void Update(
+            int id,
+            string name,
+            string email,
+            string phone)
         {
-            Console.Write("Enter Participant ID to update: ");
+            Participant? participant = GetById(id);
 
-            if (!int.TryParse(Console.ReadLine(), out int id))
-            {
-                Console.WriteLine("Invalid Participant ID.");
-                return;
-            }
+            if (participant == null)
+                throw new BusinessRuleException(
+                    "Participant not found.");
 
-            Participant? item = participants.FirstOrDefault(
-                p => p.ParticipantID == id);
+            Validate(name, email, phone, id);
 
-            if (item == null)
-            {
-                Console.WriteLine("Participant not found.");
-                return;
-            }
+            participant.FullName = name.Trim();
+            participant.Email = email.Trim();
+            participant.PhoneNumber = phone.Trim();
 
-            Console.Write("Enter new Participant Name: ");
-            string name = Console.ReadLine() ?? "";
-
-            Console.Write("Enter new Email: ");
-            string email = Console.ReadLine() ?? "";
-
-            if (string.IsNullOrWhiteSpace(name) ||string.IsNullOrWhiteSpace(email))
-            {
-                Console.WriteLine("Enter a valid name and email.");
-                return;
-            }
-
-            item.ParticipantName = name;
-            item.ParticipantEmail = email;
-
-            Console.WriteLine("Participant updated successfully.");
+            _save();
         }
 
-        public void DeleteParticipant()
+        public void Delete(int id)
         {
-            Console.Write("Enter Participant ID to delete: ");
+            Participant? participant = GetById(id);
 
-            if (!int.TryParse(Console.ReadLine(), out int id))
+            if (participant == null)
+                throw new BusinessRuleException(
+                    "Participant not found.");
+
+            if (_registrations.Any(r =>
+                r.ParticipantId == id))
             {
-                Console.WriteLine("Invalid Participant ID.");
-                return;
+                throw new BusinessRuleException(
+                    "Cannot delete a participant with registration history.");
             }
 
-            Participant? item = participants.FirstOrDefault(
-                p => p.ParticipantID == id);
-
-            if (item == null)
-            {
-                Console.WriteLine("Participant not found.");
-                return;
-            }
-
-            participants.Remove(item);
-
-            Console.WriteLine("Participant deleted successfully.");
+            _participants.Remove(participant);
+            _save();
         }
     }
 }

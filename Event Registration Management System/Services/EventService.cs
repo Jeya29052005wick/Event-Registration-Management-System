@@ -1,125 +1,152 @@
-﻿using Event_Registration_Management_System.Models;
+﻿
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using EventRegistrationManagementSystem.Models;
 
-namespace Event_Registration_Management_System.Services
+namespace EventRegistrationManagementSystem.Services
 {
     public class EventService
     {
-        private List<Event> events;
+        private readonly List<Event> _events;
+        private readonly List<Registration> _registrations;
+        private readonly Action _save;
 
-        public EventService(List<Event> events)
+        public EventService(
+            List<Event> events,
+            List<Registration> registrations,
+            Action save)
         {
-            this.events = events;
+            _events = events;
+            _registrations = registrations;
+            _save = save;
         }
 
-        public void DisplayAllEvent()
+        public List<Event> GetAll()
         {
-            var result = from item in events
-                         select item;
-
-            foreach (var item in result)
-            {
-                Console.WriteLine(item.GetDetails());
-            }
-
-            if (!events.Any())
-            {
-                Console.WriteLine("No events available.");
-            }
+            return _events.OrderBy(e => e.EventDate).ToList();
         }
 
-        public void SearchEvent()
+        public Event? GetById(int id)
         {
-            Console.Write("Enter Event Name: ");
-            string? searchName = Console.ReadLine();
-
-            if (string.IsNullOrWhiteSpace(searchName))
-            {
-                Console.WriteLine("Give a valid event name.");
-                return;
-            }
-
-            var result = events.Where(e => e.EventName.Contains(
-                    searchName,
-                    StringComparison.OrdinalIgnoreCase));
-
-            if (!result.Any())
-            {
-                Console.WriteLine("Event not found.");
-                return;
-            }
-
-            foreach (var item in result)
-            {
-                Console.WriteLine(item.GetDetails());
-            }
+            return _events.FirstOrDefault(e => e.EventId == id);
         }
 
-        public void UpdateEvent()
+        public List<Event> Search(string term)
         {
-            Console.Write("Enter Event ID to update: ");
-
-            if (!int.TryParse(Console.ReadLine(), out int id))
-            {
-                Console.WriteLine("Invalid Event ID.");
-                return;
-            }
-
-            Event? item = events.FirstOrDefault(e => e.EventId == id);
-
-            if (item == null)
-            {
-                Console.WriteLine("Event not found.");
-                return;
-            }
-
-            Console.Write("Enter new Event Name: ");
-            string name = Console.ReadLine() ?? "";
-
-            Console.Write("Enter new Venue: ");
-            string venue = Console.ReadLine() ?? "";
-
-            Console.Write("Enter new Event Date: ");
-            string date = Console.ReadLine() ?? "";
-
-
-            if (string.IsNullOrWhiteSpace(name) ||string.IsNullOrWhiteSpace(venue) ||string.IsNullOrWhiteSpace(date))
-            {
-                Console.WriteLine("Fields cannot be empty.");
-                return;
-            }
-
-            item.EventName = name;
-            item.Venue = venue;
-            item.EventDate = date;
-
-            Console.WriteLine("Event updated successfully.");
+            return _events
+                .Where(e =>
+                    e.EventName.Contains(term,
+                        StringComparison.OrdinalIgnoreCase) ||
+                    e.Venue.Contains(term,
+                        StringComparison.OrdinalIgnoreCase))
+                .OrderBy(e => e.EventName)
+                .ToList();
         }
 
-        public void DeleteEvent()
+        public int ActiveCount(int eventId)
         {
-            Console.Write("Enter Event ID to delete: ");
-
-            if (!int.TryParse(Console.ReadLine(), out int id))
-            {
-                Console.WriteLine("Invalid Event ID.");
-                return;
-            }
-
-            Event? item = events.FirstOrDefault(e => e.EventId == id);
-
-            if (item == null)
-            {
-                Console.WriteLine("Event not found.");
-                return;
-            }
-
-            events.Remove(item);
-
-            Console.WriteLine("Event deleted successfully.");
+            return _registrations.Count(r =>
+                r.EventId == eventId &&
+                r.Status != RegistrationStatus.Cancelled);
         }
 
+        public int RemainingCapacity(Event ev)
+        {
+            return ev.Capacity - ActiveCount(ev.EventId);
+        }
+
+        public void Add(Event ev)
+        {
+            if (ev.EventId <= 0)
+                throw new BusinessRuleException(
+                    "Event ID must be positive.");
+
+            if (_events.Any(e => e.EventId == ev.EventId))
+                throw new BusinessRuleException(
+                    "Event ID already exists.");
+
+            if (string.IsNullOrWhiteSpace(ev.EventName))
+                throw new BusinessRuleException(
+                    "Event name is required.");
+
+            if (string.IsNullOrWhiteSpace(ev.Venue))
+                throw new BusinessRuleException(
+                    "Venue is required.");
+
+            if (ev.EventDate <= DateTime.Now)
+                throw new BusinessRuleException(
+                    "Event date must be in the future.");
+
+            if (ev.Capacity <= 0)
+                throw new BusinessRuleException(
+                    "Capacity must be positive.");
+
+            if (ev.RegistrationFee < 0)
+                throw new BusinessRuleException(
+                    "Registration fee cannot be negative.");
+
+            _events.Add(ev);
+            _save();
+        }
+
+        public void Update(
+            int id,
+            string venue,
+            DateTime date,
+            int capacity,
+            decimal fee)
+        {
+            Event? ev = GetById(id);
+
+            if (ev == null)
+                throw new BusinessRuleException(
+                    "Event not found.");
+
+            if (string.IsNullOrWhiteSpace(venue))
+                throw new BusinessRuleException(
+                    "Venue is required.");
+
+            if (date <= DateTime.Now)
+                throw new BusinessRuleException(
+                    "Event date must be in the future.");
+
+            if (capacity <= 0)
+                throw new BusinessRuleException(
+                    "Capacity must be positive.");
+
+            int active = ActiveCount(id);
+
+            if (capacity < active)
+                throw new BusinessRuleException(
+                    $"Capacity cannot be less than {active} active registrations.");
+
+            if (fee < 0)
+                throw new BusinessRuleException(
+                    "Fee cannot be negative.");
+
+            ev.Venue = venue.Trim();
+            ev.EventDate = date;
+            ev.Capacity = capacity;
+            ev.RegistrationFee = fee;
+
+            _save();
+        }
+
+        public void Delete(int id)
+        {
+            Event? ev = GetById(id);
+
+            if (ev == null)
+                throw new BusinessRuleException(
+                    "Event not found.");
+
+            if (_registrations.Any(r => r.EventId == id))
+                throw new BusinessRuleException(
+                    "Cannot delete an event with registration history.");
+
+            _events.Remove(ev);
+            _save();
+        }
     }
 }

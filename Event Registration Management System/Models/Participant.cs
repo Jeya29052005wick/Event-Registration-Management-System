@@ -1,30 +1,29 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Text;
-
-namespace Event_Registration_Management_System.Models
+﻿
+namespace EventRegistrationManagementSystem.Models
 {
-    public class Participant
+    public class Participant : Person
     {
-        public int ParticipantID { get; set; }
-        public string ParticipantName { get; set; }
-        public long ParticipantPhone { get; set; }
-        public string ParticipantEmail { get; set; }
+        public int ParticipantId { get; set; }
+        public string Email { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
 
-        public Participant(int participantID, string participantName, long participantPhone, string participantEmail)
+        public Participant()
         {
-            ParticipantID = participantID;
-            ParticipantName = participantName;
-            ParticipantPhone = participantPhone;
-            ParticipantEmail = participantEmail;
         }
 
-        public string GetDetails()
+        public Participant(int participantId, string fullName,
+                           string email, string phoneNumber)
         {
-            return $"ID: {ParticipantID} | Name: {ParticipantName} | " +
-                   $"Phone: {ParticipantPhone} | Email: {ParticipantEmail}";
+            ParticipantId = participantId;
+            FullName = fullName;
+            Email = email;
+            PhoneNumber = phoneNumber;
         }
 
+        public override string GetDetails()
+        {
+            return $"Participant ID: {ParticipantId} | Name: {FullName} | " +
+                   $"Email: {Email} | Phone: {PhoneNumber}";
+        }
     }
 }

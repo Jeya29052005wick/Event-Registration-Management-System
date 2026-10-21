@@ -1,34 +1,37 @@
-﻿using Microsoft.VisualBasic;
+﻿
 using System;
-using System.Collections.Generic;
-using System.Text;
 
-namespace Event_Registration_Management_System.Models
+namespace EventRegistrationManagementSystem.Models
 {
-    public class Event
+    public class Event : IDisplayable
     {
-        public int EventId {  get; set; }
-        public string EventName { get; set; }
-        public string Venue { get; set; }
-        public string EventDate { get; set; }
+        public int EventId { get; set; }
+        public string EventName { get; set; } = string.Empty;
+        public string Venue { get; set; } = string.Empty;
+        public DateTime EventDate { get; set; }
         public int Capacity { get; set; }
-        public int RegistraionFee { get; set; }
+        public decimal RegistrationFee { get; set; }
 
-        public Event(int eventId, string eventName, string venue,string  eventDate, int capacity, int registraionFee)
+        public Event()
+        {
+        }
+
+        public Event(int eventId, string eventName, string venue,
+                     DateTime eventDate, int capacity, decimal registrationFee)
         {
             EventId = eventId;
             EventName = eventName;
             Venue = venue;
             EventDate = eventDate;
             Capacity = capacity;
-            RegistraionFee = registraionFee;
+            RegistrationFee = registrationFee;
         }
 
         public string GetDetails()
         {
-            return $"ID : {EventId} - NAME : {EventName}- VENUE : {Venue}+" +
-                $" Date : {EventDate:g} + Registration Fee : {RegistraionFee:c}";
+            return $"Event ID: {EventId} | Name: {EventName} | " +
+                   $"Venue: {Venue} | Date: {EventDate:dd-MM-yyyy} | " +
+                   $"Capacity: {Capacity} | Fee: ₹{RegistrationFee:F2}";
         }
-
     }
 }
