@@ -121,7 +121,6 @@ namespace EventRegistrationManagementSystem
             }
         }
 
-        // ==================== DATA ====================
 
         static void LoadData()
         {
@@ -211,7 +210,6 @@ namespace EventRegistrationManagementSystem
             Console.WriteLine("Data saved successfully.");
         }
 
-        // ==================== EVENT MENU ====================
 
         static void EventMenu()
         {
@@ -329,7 +327,6 @@ namespace EventRegistrationManagementSystem
             DisplayEvents(new List<Event> { ev });
         }
 
-        // ==================== PARTICIPANT MENU ====================
 
         static void ParticipantMenu()
         {
@@ -438,7 +435,6 @@ namespace EventRegistrationManagementSystem
                 Console.WriteLine(p.GetDetails());
         }
 
-        // ==================== REGISTRATION MENU ====================
 
         static void RegistrationMenu()
         {
@@ -544,7 +540,6 @@ namespace EventRegistrationManagementSystem
             Console.WriteLine($"Email: {p?.Email ?? "N/A"}");
         }
 
-        // ==================== SEARCH / VIEW MENU ====================
 
         static void SearchMenu()
         {
@@ -635,7 +630,6 @@ namespace EventRegistrationManagementSystem
             }
         }
 
-        // ==================== REPORT MENU ====================
 
         static void ReportMenu()
         {

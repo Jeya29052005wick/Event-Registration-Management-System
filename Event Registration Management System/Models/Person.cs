@@ -1,5 +1,4 @@
-﻿
-namespace EventRegistrationManagementSystem.Models
+﻿namespace EventRegistrationManagementSystem.Models
 {
     public interface IDisplayable
     {
